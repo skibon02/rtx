@@ -5,6 +5,7 @@ precision highp float;
 in vec2 pos;
 
 uniform float u_seed;
+uniform float u_sample_count;
 
 float cur_seed;
 
@@ -15,7 +16,7 @@ struct Material {
     vec3 emission;
     float reflectivity;
     float albedoFactor;
-    // bool isGlass;
+    bool isGlass;
 };
 
 struct Sphere {
@@ -56,22 +57,22 @@ Sphere spheres[numSpheres] = Sphere[](
     Sphere(vec3(-0.75, -1.45, -4.4), 1.05, 
     Material(
         vec3(0.4, 0.8, 0.4), 
-        vec3(0.0), 1.0, 0.8)),
+        vec3(0.0), 1.0, 0.8, false)),
 
     Sphere(vec3(2.0, -2.05, -3.7), 0.5, 
     Material(
         vec3(1, 1, 0.1), 
-        vec3(0.0), 0.0, 0.8)),
+        vec3(0.0), 0.0, 0.8, true)),
 
     Sphere(vec3(-1.75, -1.95, -3.1), 0.6, 
     Material(
         vec3(1, 1, 1), 
-        vec3(0.0), 0.0, 0.8)),
+        vec3(0.0), 0.0, 0.8, false)),
 
     Sphere(vec3(0, 17.8, -1), 15.0, 
         Material(
             vec3(0.0, 0.0, 0.0), 
-            vec3(50000), 0.0, 0.8))
+            vec3(50000), 0.0, 0.8, false))
 );
 
 const int numPlanes = 6;
@@ -79,34 +80,34 @@ Plane planes[numPlanes] = Plane[](
     Plane(vec3(0, 1, 0), 2.5, 
         Material(
             vec3(0.9, 0.9, 0.9), 
-            vec3(0.0), 0.0, 0.8)),
+            vec3(0.0), 0.0, 0.8, false)),
     Plane(vec3(0, -1, 0), 3.0,
         Material(
             vec3(0.9, 0.9, 0.9), 
-            vec3(0.0), 0.0, 0.8)),
+            vec3(0.0), 0.0, 0.8, false)),
 
     //Left / Right
     Plane(vec3(1, 0, 0), 2.75,
         Material(
             vec3(1, 0.1, 0.1), 
-            vec3(0.0), 0.0, 0.8)),
+            vec3(0.0), 0.1, 0.8, false)),
     Plane(vec3(-1, 0, 0), 2.75,
         Material(
             vec3(0.1, 1, 0.1), 
-            vec3(0.0), 0.0, 0.8)),
+            vec3(0.0), 0.1, 0.8, false)),
 
-
+    //Back / Front
     Plane(vec3(0, 0, 1), 6.0,
         Material(
             vec3(0.9, 0.9, 0.9), 
-            vec3(0.0), 0.0, 0.8)),
+            vec3(0.0), 0.01, 0.8, false)),
     Plane(vec3(0, 0, -1), 0.5,
         Material(
             vec3(0.9, 0.9, 0.9), 
-            vec3(0.0), 0.0, 0.8))
+            vec3(0.0), 0.0, 0.8, false))
 );
 
-const float finalLumScale = 0.02;
+const float finalLumScale = 0.0004;
 
 const int RAY_BOUNCE_MAX_STACK_SIZE = 25;
 
@@ -187,27 +188,55 @@ vec3 pathTrace(Ray ray) {
             lightColor = intersection.material.emission;
             break;
         } else {
-            //diffuse / reflection
-            if(rand() > intersection.material.reflectivity) {
-                //diffuse
-		        vec3 rotX, rotY;
-                createCoordinateSystem(intersection.normal, rotX, rotY);
-                float r1 = 2.0 * 3.14159265359 * rand();
-                float r2 = rand();
-                float r2s = sqrt(r2);
-                vec3 w = intersection.normal;
-                vec3 u = rotX;
-                vec3 v = rotY;
-                vec3 d = normalize(u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1.0 - r2));
-                ray.dir = d;
-                
-                float cost = dot(ray.dir, intersection.normal);
-                rayBounceStack[depth] = intersection.material.albedo * intersection.material.albedoFactor * cost;
-            } else {
-                //reflection
-                float cost = dot(ray.dir, intersection.normal);
-                ray.dir = normalize(ray.dir - intersection.normal * cost * 2.0);
+            if(intersection.material.isGlass) {
+                float n = 1.5;
+                float R0 = (1.0 - n) / (1.0 + n);
+                R0 = R0 * R0;
+                if(dot(ray.dir, intersection.normal) > 0.0) {
+                    intersection.normal = -intersection.normal;
+                    n = 1.0 / n;
+                }
+                float cosI = -dot(ray.dir, intersection.normal);
+                float sinT2 = n * n * (1.0 - cosI * cosI);
+                if(sinT2 > 1.0) {
+                    //total internal reflection
+                    ray.dir = reflect(ray.dir, intersection.normal);
+                } else {
+                    float cosT = sqrt(1.0 - sinT2);
+                    float R = R0 + (1.0 - R0) * pow(1.0 - cosI, 5.0);
+                    float T = 1.0 - R;
+                    if(rand() < R) {
+                        ray.dir = reflect(ray.dir, intersection.normal);
+                    } else {
+                        //refraction
+                        ray.origin = ray.origin + intersection.normal * 0.02;
+                        ray.dir = normalize(ray.dir * n + intersection.normal * (n * cosI - cosT));
+                    }
+                }
                 rayBounceStack[depth] = intersection.material.albedo;
+            } 
+            else {
+                if(rand() > intersection.material.reflectivity) {
+                    //diffuse
+                    vec3 rotX, rotY;
+                    createCoordinateSystem(intersection.normal, rotX, rotY);
+                    float r1 = 2.0 * 3.14159265359 * rand();
+                    float r2 = rand();
+                    float r2s = sqrt(r2);
+                    vec3 w = intersection.normal;
+                    vec3 u = rotX;
+                    vec3 v = rotY;
+                    vec3 d = normalize(u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1.0 - r2));
+                    ray.dir = d;
+                    
+                    float cost = dot(ray.dir, intersection.normal);
+                    rayBounceStack[depth] = intersection.material.albedo * intersection.material.albedoFactor * cost;
+                } else {
+                    //reflection
+                    float cost = dot(ray.dir, intersection.normal);
+                    ray.dir = normalize(ray.dir - intersection.normal * cost * 2.0);
+                    rayBounceStack[depth] = intersection.material.albedo;
+                }
             }
         }
         depth++;
@@ -222,10 +251,9 @@ void main() {
     cur_seed = u_seed + pos.x * 421.24 + pos.y * 192.52;
     cur_seed *= rand();
     Ray ray;
-    ray.dir = vec3(0.0, 0.0, -1.0) + vec3(pos.x, pos.y, 0.0);
+    ray.dir = vec3(0.0, 0.0, -1.0) + vec3(pos.x*1.2, pos.y, 0.0);
     ray.dir = normalize(ray.dir);
     ray.origin = vec3(0.0, 0.0, 0.0);
-    vec3 col = pathTrace(ray);
-    col = pow(col, vec3(1.0 / 2.2));
-    outColor = vec4(col * finalLumScale, 1.0);
+    vec3 col = pathTrace(ray) * finalLumScale;
+    outColor = vec4(col, 1.0);
 }
