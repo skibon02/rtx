@@ -54,6 +54,7 @@ class App {
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     
         this.uni_resolution_loc = gl.getUniformLocation(this.program, "u_resolution");
+        this.uni_seed_loc = gl.getUniformLocation(this.program, "u_seed");
 
         gl.useProgram(this.program);
         gl.uniform2f(this.uni_resolution_loc, gl.canvas.width, gl.canvas.height);
@@ -126,6 +127,7 @@ class App {
         this.gl.useProgram(this.program);
         this.gl.bindVertexArray(this.vao);
 
+        this.gl.uniform1f(this.uni_seed_loc, Math.random()*timestamp);
         this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
 
         window.requestAnimationFrame(this.draw.bind(this));
