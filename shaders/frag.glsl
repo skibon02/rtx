@@ -255,7 +255,8 @@ vec3 pathTrace(Ray ray) {
     }
     return lightColor;
 }
-const int SAMPLES = 35;
+const int SAMPLES = 5;
+const float aa_factor = 3.0;
 void main() {
     cur_seed = u_seed + pos.x * 155.24 + pos.y * 192.52;
     cur_seed *= rand();
@@ -270,6 +271,12 @@ void main() {
     ray.origin = vec3(0.0, 0.0, 0.0);
     vec3 col = vec3(0.0);
     for(int i = 0; i < SAMPLES; i++) {
+        if(aa_factor > 0.0) {
+            ray.dir = vec3(0.0, 0.0, -1.0) + vec3(pos.x*(u_resolution.x / u_resolution.y), pos.y, 0.0) * fovscale;
+            ray.dir.x += (rand() - 0.5) / u_resolution.x * aa_factor;
+            ray.dir.y += (rand() - 0.5) / u_resolution.y * aa_factor;
+            ray.dir = normalize(ray.dir);
+        }
         col += pathTrace(ray);
         cur_seed *= rand();
     }

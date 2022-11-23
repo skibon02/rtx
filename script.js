@@ -7,13 +7,15 @@ class App {
         this.swapBuffer = [{}, {}];
         this.curFrame = 0;
         this.passes = 1;
+
+        this.clearAfterPass = false;
     }
     async initGraphics() {
         let canvas = document.querySelector("#c");
-        // this.keydownHandler = this.keydown.bind(this);
-        // this.keyupHandler = this.keyup.bind(this);
-        // window.addEventListener('keydown',this.keydownHandler,false);
-        // window.addEventListener('keyup',this.keyupHandler,false);
+        this.keydownHandler = this.keydown.bind(this);
+        this.keyupHandler = this.keyup.bind(this);
+        window.addEventListener('keydown',this.keydownHandler,false);
+        window.addEventListener('keyup',this.keyupHandler,false);
        
         this.resizeObserver = new ResizeObserver(this.resizeCanvasToDisplaySize.bind(this));
         this.resizeObserver.observe(canvas);
@@ -110,6 +112,16 @@ class App {
         //start rendering cycle
         window.requestAnimationFrame(this.draw.bind(this));
     }
+    keyup(e){
+        if(e.key == " "){
+            this.clearAfterPass = !this.clearAfterPass;
+        }
+    }
+    keydown(e){
+        if(e.key == " "){
+            e.preventDefault();
+        }
+    }
     createShader( type, source) {
         var shader = this.gl.createShader(type);
         this.gl.shaderSource(shader, source);
@@ -200,11 +212,13 @@ class App {
 
         this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
 
-        // // reset the framebuffer
-        // this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.swapBuffer[nextFrame].fb);
-        // this.gl.clearColor(0, 0, 0, 1);
-        // this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-        // this.samples_cnt = 0;
+        if(this.clearAfterPass) {
+            // reset the framebuffer
+            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.swapBuffer[nextFrame].fb);
+            this.gl.clearColor(0, 0, 0, 1);
+            this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+            this.samples_cnt = 0;
+        }
 
         setTimeout(() => {
             window.requestAnimationFrame(this.draw.bind(this));
@@ -215,8 +229,8 @@ class App {
         this.stopped = true;
         this.resizeObserver.disconnect();
 
-        // window.removeEventListener('keydown', this.keydownHandler);
-        // window.removeEventListener('keyup', this.keyupHandler);
+        window.removeEventListener('keydown', this.keydownHandler);
+        window.removeEventListener('keyup', this.keyupHandler);
 
         // this.gl.deleteTexture(this.bgtexture);
         // this.gl.deleteBuffer(this.vertexBuffer);
