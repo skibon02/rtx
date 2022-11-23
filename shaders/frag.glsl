@@ -63,7 +63,7 @@ const int numSpheres = 4;
 Sphere spheres[numSpheres] = Sphere[](
     Sphere(vec3(-0.75, -1.45, -4.4), 1.05, 
     Material(
-        vec3(0.4, 0.8, 0.4), 
+        vec3(0.8, 0.4, 0.8), 
         vec3(0.0), 1.0, 0.8, false)),
 
     Sphere(vec3(2.0, -2.05, -3.7), 0.5, 
@@ -101,17 +101,17 @@ Plane planes[numPlanes] = Plane[](
     Plane(vec3(-1, 0, 0), 2.75,
         Material(
             vec3(0.1, 1, 0.1), 
-            vec3(0.0), 0.1, 0.8, false)),
+            vec3(0.0), 0.0, 0.8, false)),
 
     //Back / Front
     Plane(vec3(0, 0, 1), 6.0,
         Material(
-            vec3(0.9, 0.9, 0.9), 
-            vec3(0.0), 0.0, 0.8, false)),
+            vec3(0.8, 0.8, 0.5), 
+            vec3(0.0), 1.0, 0.6, false)),
     Plane(vec3(0, 0, -1), 0.5,
         Material(
             vec3(0.9, 0.9, 0.9), 
-            vec3(0.0), 0.0, 0.8, false))
+            vec3(0.0), 0.2, 0.8, false))
 );
 
 const float finalLumScale = 0.0005;
@@ -244,7 +244,7 @@ vec3 pathTrace(Ray ray) {
                     //reflection
                     float cost = dot(ray.dir, intersection.normal);
                     ray.dir = normalize(ray.dir - intersection.normal * cost * 2.0);
-                    rayBounceStack[depth] = intersection.material.albedo;
+                    rayBounceStack[depth] = intersection.material.albedo * intersection.material.albedoFactor;
                 }
             }
         }
