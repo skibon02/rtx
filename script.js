@@ -22,6 +22,14 @@ class App {
     
         this.gl = canvas.getContext("webgl2");
         let gl = this.gl;
+        // without this we can't render to RGBA32F
+        if (!gl.getExtension('EXT_color_buffer_float')) {
+            return alert('need EXT_color_buffer_float');
+        }
+        // just guessing without this we can't downsample
+        if (!gl.getExtension('OES_texture_float_linear')) {
+            return alert('need OES_texture_float_linear');
+        }
 
         if (!gl) {
             console.log('No webGL :(');
@@ -71,7 +79,7 @@ class App {
         this.gl.activeTexture(this.gl.TEXTURE0);
         this.swapBuffer[0].texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, this.swapBuffer[0].texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.FLOAT, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -87,7 +95,7 @@ class App {
         this.gl.activeTexture(this.gl.TEXTURE1);
         this.swapBuffer[1].texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, this.swapBuffer[1].texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.FLOAT, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -101,7 +109,6 @@ class App {
     
         this.uni_resolution_loc = this.gl.getUniformLocation(this.sample_program, "u_resolution");
         this.uni_seed_loc = this.gl.getUniformLocation(this.sample_program, "u_seed");
-        this.uni_sample_count_loc = this.gl.getUniformLocation(this.sample_program, "u_sample_count");
         this.gl.uniform2f(this.uni_resolution_loc, canvas.width, canvas.height);
 
         this.gl.useProgram(this.present_program);
@@ -183,7 +190,6 @@ class App {
         let nextFrame = this.curFrame == 0 ? 1 : 0;
         //first pass
         for(let i = 0; i < this.passes; i++) {
-            this.samples_cnt++;
 
             nextFrame = this.curFrame == 0 ? 1 : 0;
             this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.swapBuffer[nextFrame].fb);
@@ -195,7 +201,7 @@ class App {
             this.gl.useProgram(this.sample_program);
             this.gl.bindVertexArray(this.vao);
 
-            this.gl.uniform1f(this.uni_seed_loc, Math.random()*timestamp);
+            this.gl.uniform1f(this.uni_seed_loc, Math.random()*timestamp * 1.623426 % 1);
             this.gl.uniform1f(this.uni_sample_count_loc, this.samples_cnt);
 
 
@@ -217,7 +223,6 @@ class App {
             this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.swapBuffer[nextFrame].fb);
             this.gl.clearColor(0, 0, 0, 1);
             this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-            this.samples_cnt = 0;
         }
 
         // setTimeout(() => {
