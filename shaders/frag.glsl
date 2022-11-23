@@ -4,8 +4,12 @@ precision highp float;
 
 in vec2 pos;
 
+uniform vec2 u_resolution;
 uniform float u_seed;
 uniform float u_sample_count;
+uniform sampler2D u_prev_frame;
+
+float PI = 3.1415926535897932384626433832795;
 
 float cur_seed;
 
@@ -47,7 +51,10 @@ struct Ray {
 
 float rand(){
     float res = fract(sin(cur_seed) * 43758.5453123);
-    cur_seed += 112312.1523651;
+    cur_seed = (cur_seed + 1.622312316);
+    if(cur_seed > 1000000.0){
+        cur_seed = 0.0;
+    }
     return res;
 }
 
@@ -72,7 +79,7 @@ Sphere spheres[numSpheres] = Sphere[](
     Sphere(vec3(0, 17.8, -1), 15.0, 
         Material(
             vec3(0.0, 0.0, 0.0), 
-            vec3(50000), 0.0, 0.8, false))
+            vec3(50000.0, 40000.0, 45000.0), 0.0, 0.8, false))
 );
 
 const int numPlanes = 6;
@@ -80,7 +87,7 @@ Plane planes[numPlanes] = Plane[](
     Plane(vec3(0, 1, 0), 2.5, 
         Material(
             vec3(0.9, 0.9, 0.9), 
-            vec3(0.0), 0.0, 0.8, false)),
+            vec3(0.0), 0.6, 0.8, false)),
     Plane(vec3(0, -1, 0), 3.0,
         Material(
             vec3(0.9, 0.9, 0.9), 
@@ -90,7 +97,7 @@ Plane planes[numPlanes] = Plane[](
     Plane(vec3(1, 0, 0), 2.75,
         Material(
             vec3(1, 0.1, 0.1), 
-            vec3(0.0), 0.1, 0.8, false)),
+            vec3(0.0), 0.4, 0.8, false)),
     Plane(vec3(-1, 0, 0), 2.75,
         Material(
             vec3(0.1, 1, 0.1), 
@@ -100,14 +107,14 @@ Plane planes[numPlanes] = Plane[](
     Plane(vec3(0, 0, 1), 6.0,
         Material(
             vec3(0.9, 0.9, 0.9), 
-            vec3(0.0), 0.01, 0.8, false)),
+            vec3(0.0), 0.0, 0.8, false)),
     Plane(vec3(0, 0, -1), 0.5,
         Material(
             vec3(0.9, 0.9, 0.9), 
             vec3(0.0), 0.0, 0.8, false))
 );
 
-const float finalLumScale = 0.0004;
+const float finalLumScale = 0.0005;
 
 const int RAY_BOUNCE_MAX_STACK_SIZE = 25;
 
@@ -214,9 +221,11 @@ vec3 pathTrace(Ray ray) {
                     }
                 }
                 rayBounceStack[depth] = intersection.material.albedo;
+                
             } 
             else {
-                if(rand() > intersection.material.reflectivity) {
+                if(rand() >= intersection.material.reflectivity) {
+                // if(true) {
                     //diffuse
                     vec3 rotX, rotY;
                     createCoordinateSystem(intersection.normal, rotX, rotY);
@@ -230,7 +239,7 @@ vec3 pathTrace(Ray ray) {
                     ray.dir = d;
                     
                     float cost = dot(ray.dir, intersection.normal);
-                    rayBounceStack[depth] = intersection.material.albedo * intersection.material.albedoFactor * cost;
+                    rayBounceStack[depth] = intersection.material.albedo * intersection.material.albedoFactor * cost / PI;
                 } else {
                     //reflection
                     float cost = dot(ray.dir, intersection.normal);
@@ -246,14 +255,32 @@ vec3 pathTrace(Ray ray) {
     }
     return lightColor;
 }
-
+const int SAMPLES = 35;
 void main() {
-    cur_seed = u_seed + pos.x * 421.24 + pos.y * 192.52;
+    cur_seed = u_seed + pos.x * 155.24 + pos.y * 192.52;
+    cur_seed *= rand();
     cur_seed *= rand();
     Ray ray;
-    ray.dir = vec3(0.0, 0.0, -1.0) + vec3(pos.x*1.2, pos.y, 0.0);
+    float fovscale = 1.0;
+    if(u_resolution.y > u_resolution.x) {
+        fovscale *= u_resolution.y / u_resolution.x;
+    }
+    ray.dir = vec3(0.0, 0.0, -1.0) + vec3(pos.x*(u_resolution.x / u_resolution.y), pos.y, 0.0) * fovscale;
     ray.dir = normalize(ray.dir);
     ray.origin = vec3(0.0, 0.0, 0.0);
-    vec3 col = pathTrace(ray) * finalLumScale;
-    outColor = vec4(col, 1.0);
+    vec3 col = vec3(0.0);
+    for(int i = 0; i < SAMPLES; i++) {
+        col += pathTrace(ray);
+        cur_seed *= rand();
+    }
+    col /= float(SAMPLES);
+    col *=  finalLumScale;
+    vec2 texCoord = pos * 0.5 + 0.5;
+    if(u_sample_count > 1.0) {
+        vec4 oldCol = texture(u_prev_frame, texCoord);
+        outColor = vec4((oldCol.rgb * float(u_sample_count - 1.0) + col) / float(u_sample_count), 1.0);
+    }
+    else {
+        outColor = vec4(col, 1.0);
+    }
 }

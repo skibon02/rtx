@@ -4,6 +4,9 @@ class App {
 
         this.samples_cnt = 0;
         this.initGraphics();
+        this.swapBuffer = [{}, {}];
+        this.curFrame = 0;
+        this.passes = 1;
     }
     async initGraphics() {
         let canvas = document.querySelector("#c");
@@ -64,29 +67,32 @@ class App {
         gl.bindVertexArray(this.vao);
 
         this.gl.activeTexture(this.gl.TEXTURE0);
-        this.sampleTexture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, this.sampleTexture);
+        this.swapBuffer[0].texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this.swapBuffer[0].texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-        this.fb = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fb);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.sampleTexture, 0);
+        this.swapBuffer[0].fb = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.swapBuffer[0].fb);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.swapBuffer[0].texture, 0);
 
         this.gl.clearColor(0, 0, 0, 1);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
         this.gl.flush();
 
-        // this.gl.activeTexture(this.gl.TEXTURE0);
-        // this.resTexture = gl.createTexture();
-        // gl.bindTexture(gl.TEXTURE_2D, this.resTexture);
-        // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        this.gl.activeTexture(this.gl.TEXTURE1);
+        this.swapBuffer[1].texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this.swapBuffer[1].texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+        this.swapBuffer[1].fb = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.swapBuffer[1].fb);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.swapBuffer[1].texture, 0);
 
         //setup the viewport
         this.gl.viewport(0, 0, canvas.width, canvas.height);
@@ -94,9 +100,11 @@ class App {
         this.uni_resolution_loc = this.gl.getUniformLocation(this.sample_program, "u_resolution");
         this.uni_seed_loc = this.gl.getUniformLocation(this.sample_program, "u_seed");
         this.uni_sample_count_loc = this.gl.getUniformLocation(this.sample_program, "u_sample_count");
-
-        this.gl.useProgram(this.sample_program);
         this.gl.uniform2f(this.uni_resolution_loc, canvas.width, canvas.height);
+
+        this.gl.useProgram(this.present_program);
+        this.gl.uniform1i(this.gl.getUniformLocation(this.present_program, "u_texture"), 1);
+
 
 
         //start rendering cycle
@@ -159,31 +167,48 @@ class App {
         if(this.stopped) {
             return;
         }
-        this.sample_count++;
-        
-        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fb);
-        this.gl.useProgram(this.sample_program);
-        this.gl.bindVertexArray(this.vao);
 
-        this.gl.uniform1f(this.uni_seed_loc, Math.random()*timestamp);
-        this.gl.uniform1i(this.uni_sample_count_loc, this.sample_count);
+        let nextFrame = this.curFrame == 0 ? 1 : 0;
+        //first pass
+        for(let i = 0; i < this.passes; i++) {
+            this.samples_cnt++;
+
+            nextFrame = this.curFrame == 0 ? 1 : 0;
+            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.swapBuffer[nextFrame].fb);
+            this.gl.activeTexture(this.gl.TEXTURE0);
+            this.gl.bindTexture(this.gl.TEXTURE_2D, this.swapBuffer[this.curFrame].texture);
+            this.gl.activeTexture(this.gl.TEXTURE1);
+            this.gl.bindTexture(this.gl.TEXTURE_2D, this.swapBuffer[nextFrame].texture);
+
+            this.gl.useProgram(this.sample_program);
+            this.gl.bindVertexArray(this.vao);
+
+            this.gl.uniform1f(this.uni_seed_loc, Math.random()*timestamp);
+            this.gl.uniform1f(this.uni_sample_count_loc, this.samples_cnt);
 
 
-        this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+            this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+            this.curFrame = nextFrame;
+        }
 
 
         //second pass
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-        this.gl.clearColor(this.bg[0],this.bg[1], this.bg[2], 1);
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
         this.gl.useProgram(this.present_program);
         this.gl.bindVertexArray(this.present_vao);
 
-        this.gl.uniform1i(this.gl.getUniformLocation(this.present_program, "u_texture"), 0);
-
         this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
-        window.requestAnimationFrame(this.draw.bind(this));
+
+        // // reset the framebuffer
+        // this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.swapBuffer[nextFrame].fb);
+        // this.gl.clearColor(0, 0, 0, 1);
+        // this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+        // this.samples_cnt = 0;
+
+        setTimeout(() => {
+            window.requestAnimationFrame(this.draw.bind(this));
+        }, 500);
     }
 
     cleanup() {
