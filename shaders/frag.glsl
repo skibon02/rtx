@@ -116,7 +116,7 @@ Plane planes[numPlanes] = Plane[](
 
 const float finalLumScale = 0.0005;
 
-const int RAY_BOUNCE_MAX_STACK_SIZE = 25;
+const int RAY_BOUNCE_MAX_STACK_SIZE = 15;
 
 int depth = 0;
 

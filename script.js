@@ -220,9 +220,9 @@ class App {
             this.samples_cnt = 0;
         }
 
-        setTimeout(() => {
-            window.requestAnimationFrame(this.draw.bind(this));
-        }, 100);
+        // setTimeout(() => {
+        window.requestAnimationFrame(this.draw.bind(this));
+        // }, 60);
     }
 
     cleanup() {
