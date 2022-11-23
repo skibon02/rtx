@@ -208,7 +208,7 @@ class App {
 
         setTimeout(() => {
             window.requestAnimationFrame(this.draw.bind(this));
-        }, 500);
+        }, 100);
     }
 
     cleanup() {
