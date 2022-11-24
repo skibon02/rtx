@@ -155,7 +155,7 @@ Cube cubes[numCubes] = Cube[](
     Cube(vec3(2.4, 1.0, -4.5), vec3(2.6, 1.8, -3.5),
         Material(
             vec3(0.2, 0.2, 0.9), 
-            vec3(0.0), 0.1, 0.7, false))
+            vec3(0.0), 0.1, 0.7, true))
 );
 
 
@@ -278,7 +278,7 @@ vec3 pathTrace(Ray ray) {
                 float cost1 = (-dot(ray.dir, intersection.normal));
                 float cost2 = 1.0 - n * n * (1.0 - cost1 * cost1);
                 float R = R0 + (1.0 - R0) * pow(1.0 - cost1, 5.0); // Schlick's approximation
-                if (cost2 > 0.0 || random(vec3(252.315, 26.236, 152.9342), cur_seed + float(depth)) > R) {
+                if (cost2 > 0.0 && random(vec3(252.315, 26.236, 152.9342), cur_seed + float(depth)) > R) {
                     ray.dir = normalize(n * ray.dir + (n * cost1 - sqrt(cost2)) * intersection.normal);
                 } else {
                     ray.dir = normalize(reflect(ray.dir, intersection.normal));
@@ -317,7 +317,7 @@ vec3 pathTrace(Ray ray) {
     }
     return lightColor * throughput;
 }
-const int SAMPLES = 8;
+const int SAMPLES = 1;
 const float aa_factor = 3.0;
 void main() {
     cur_seed = u_seed;
