@@ -6,7 +6,6 @@ in vec2 pos;
 
 uniform vec2 u_resolution;
 uniform float u_seed;
-uniform sampler2D u_prev_frame;
 
 const float PI = 3.1415926535897932384626433832795;
 const float eps = 1e-5;
@@ -148,15 +147,15 @@ Plane planes[numPlanes] = Plane[](
     Plane(vec3(0, 0, -1), 0.5,
         Material(
             vec3(0.9, 0.9, 0.9), 
-            vec3(0.0), 0.2, 0.8, false))
+            vec3(0.0), 0.0, 0.8, false))
 );
 
 const int numCubes = 1;
 Cube cubes[numCubes] = Cube[](
     Cube(vec3(2.4, 1.0, -4.5), vec3(2.6, 1.8, -3.5),
         Material(
-            vec3(0.6, 0.6, 0.9), 
-            vec3(0.0), 0.2, 0.8, false))
+            vec3(0.2, 0.2, 0.9), 
+            vec3(0.0), 0.1, 0.7, false))
 );
 
 
@@ -223,7 +222,21 @@ Intersection intersect(Ray ray) {
             if (t >= eps && (intersection.distance < 0.0 || t < intersection.distance)) {
                 intersection.distance = t;
                 intersection.position = ray.origin + ray.dir * t;
-                intersection.normal = normalize(intersection.position - ray.origin);
+                //calculate normal
+                vec3 n = vec3(0.0);
+                if (abs(intersection.position.x - cube.min.x) < eps)
+                    n.x = -1.0;
+                else if (abs(intersection.position.x - cube.max.x) < eps)
+                    n.x = 1.0;
+                else if (abs(intersection.position.y - cube.min.y) < eps)
+                    n.y = -1.0;
+                else if (abs(intersection.position.y - cube.max.y) < eps)
+                    n.y = 1.0;
+                else if (abs(intersection.position.z - cube.min.z) < eps)
+                    n.z = -1.0;
+                else if (abs(intersection.position.z - cube.max.z) < eps)
+                    n.z = 1.0;
+                intersection.normal = n;
                 intersection.material = cube.material;
             }
         }
@@ -273,6 +286,9 @@ vec3 pathTrace(Ray ray) {
                 throughput *= intersection.material.albedo;
             } 
             else {
+                // test normals
+                // lightColor = abs(intersection.normal) * 500.0;
+                // break;
                 if(random(vec3(52.315, 126.236, 154.9342), cur_seed + float(depth)) >= intersection.material.reflectivity) {
                 //if(true) {
                     //diffuse
@@ -327,7 +343,7 @@ void main() {
     col /= float(SAMPLES);
     col *=  finalLumScale;
     vec2 texCoord = pos * 0.5 + 0.5;
-    vec4 oldCol = texture(u_prev_frame, texCoord);
-    outColor = oldCol + vec4(col, 1.0);
+    //vec4 oldCol = texture(u_prev_frame, texCoord);
+    outColor = vec4(col, 1.0);
 
 }
