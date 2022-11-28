@@ -6,6 +6,8 @@ class App {
         this.initGraphics();
         this.curFrame = 0;
         this.passes = 1;
+        this.bounces = 1;
+        this.buffer_dirty = false;
 
         this.clearAfterPass = false;
     }
@@ -92,7 +94,9 @@ class App {
     
         this.uni_resolution_loc = this.gl.getUniformLocation(this.sample_program, "u_resolution");
         this.uni_seed_loc = this.gl.getUniformLocation(this.sample_program, "u_seed");
+        this.uni_bounces_loc = this.gl.getUniformLocation(this.sample_program, "u_bounces");
         this.gl.uniform2f(this.uni_resolution_loc, canvas.width, canvas.height);
+        this.gl.uniform1i(this.uni_bounces_loc, this.bounces);
 
         this.gl.useProgram(this.present_program);
         this.gl.uniform1i(this.gl.getUniformLocation(this.present_program, "u_texture"), 0);
@@ -102,14 +106,22 @@ class App {
         //start rendering cycle
         window.requestAnimationFrame(this.draw.bind(this));
     }
-    keyup(e){
-        if(e.key == " "){
-            this.clearAfterPass = !this.clearAfterPass;
-        }
-    }
     keydown(e){
         if(e.key == " "){
             e.preventDefault();
+        }
+        if(e.key == "f"){
+            this.bounces++;
+            this.buffer_dirty = true;
+        }
+        if(e.key == "d"){
+            this.bounces--;
+            this.buffer_dirty = true;
+        }
+    }
+    keyup(e){
+        if(e.key == " "){
+            this.clearAfterPass = !this.clearAfterPass;
         }
     }
     createShader( type, source) {
@@ -161,6 +173,7 @@ class App {
                 this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
                 this.gl.useProgram(this.sample_program);
                 this.gl.uniform2f(this.uni_resolution_loc, this.gl.canvas.width, this.gl.canvas.height);
+                this.buffer_dirty = true;
             }
         }
     }
@@ -174,6 +187,13 @@ class App {
 
         this.gl.useProgram(this.sample_program);
         this.gl.bindVertexArray(this.vao);
+        this.gl.uniform1i(this.uni_bounces_loc, this.bounces);
+
+        if(this.buffer_dirty){
+            this.gl.clearColor(0, 0, 0, 1);
+            this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+            this.buffer_dirty = false;
+        }
         //first pass
         for(let i = 0; i < this.passes; i++) {
             this.gl.uniform1f(this.uni_seed_loc, Math.random()*timestamp * 1.623426 % 1);

@@ -6,6 +6,7 @@ in vec2 pos;
 
 uniform vec2 u_resolution;
 uniform float u_seed;
+uniform int u_bounces;
 
 const float PI = 3.1415926535897932384626433832795;
 const float eps = 1e-5;
@@ -85,9 +86,7 @@ vec3 cosineWeightedDirection(float seed, vec3 normal) {
     float r2 = random(vec3(63.7264, 10.873, 623.6736), seed);
     float r2s = sqrt(r2);
     vec3 w = normal;
-    vec3 u = rotX;
-    vec3 v = rotY;
-    vec3 d = normalize(u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1.0 - r2));
+    vec3 d = normalize(rotX * cos(r1) * r2s + rotY * sin(r1) * r2s + w * sqrt(1.0 - r2));
     return d;
 }
 
@@ -246,14 +245,14 @@ Intersection intersect(Ray ray) {
 
 
 const float finalLumScale = 0.0008;
-const int MAX_BOUNCES = 15;
+// const int MAX_BOUNCES = 15;
 vec3 pathTrace(Ray ray) {
     int depth = 0;
     //color of ray, that flew out of the camera
     vec3 lightColor = vec3(0.0);
     vec3 throughput = vec3(1.0);
 
-    while(depth < MAX_BOUNCES) {
+    while(depth < u_bounces) {
         Intersection intersection = intersect(ray);
         if(intersection.distance == -1.0) {
             break;
