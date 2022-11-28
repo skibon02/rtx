@@ -10,6 +10,9 @@ class App {
         this.buffer_dirty = false;
 
         this.clearAfterPass = false;
+        if(localStorage.getItem("hint_shown")) {
+            document.querySelector(".hint").style.display = "none";
+        }
     }
     async initGraphics() {
         let canvas = document.querySelector("#c");
@@ -110,13 +113,17 @@ class App {
         if(e.key == " "){
             e.preventDefault();
         }
-        if(e.key == "f"){
+        if(e.key == "f" || e.key == "F" || e.key == "а" || e.key == "А"){
             this.bounces++;
             this.buffer_dirty = true;
         }
-        if(e.key == "d"){
+        if(e.key == "d" || e.key == "D" || e.key == "в" || e.key == "В"){
             this.bounces--;
             this.buffer_dirty = true;
+        }
+        if(this.buffer_dirty) {
+            document.querySelector(".hint").style.display = "none";
+            localStorage.setItem("hint_shown", true);
         }
     }
     keyup(e){
