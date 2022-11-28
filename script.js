@@ -18,8 +18,10 @@ class App {
         let canvas = document.querySelector("#c");
         this.keydownHandler = this.keydown.bind(this);
         this.keyupHandler = this.keyup.bind(this);
+        this.clickHandler = this.click.bind(this);
         window.addEventListener('keydown',this.keydownHandler,false);
         window.addEventListener('keyup',this.keyupHandler,false);
+        canvas.addEventListener('click',this.clickHandler,false);
        
         this.resizeObserver = new ResizeObserver(this.resizeCanvasToDisplaySize.bind(this));
         this.resizeObserver.observe(canvas);
@@ -130,6 +132,10 @@ class App {
         if(e.key == " "){
             this.clearAfterPass = !this.clearAfterPass;
         }
+    }
+    click() {
+        this.bounces++;
+        this.buffer_dirty = true;
     }
     createShader( type, source) {
         var shader = this.gl.createShader(type);
